@@ -9,30 +9,19 @@
 
 namespace Webfactory\Doctrine\ORMTestInfrastructure;
 
-use Doctrine\Persistence\ObjectManager;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ObjectManager;
 
 /**
  * Helper class that is used to import entities via entity manager.
  */
 class Importer
 {
-
-    /**
-     * The entity manager that is used to add the imported entities.
-     *
-     * @var \Doctrine\ORM\EntityManagerInterface
-     */
-    protected $entityManager = null;
-
     /**
      * Creates an importer that uses the provided entity manager.
-     *
-     * @param EntityManagerInterface $entityManager
      */
-    public function __construct(EntityManagerInterface $entityManager)
+    public function __construct(protected EntityManagerInterface $entityManager)
     {
-        $this->entityManager = $entityManager;
     }
 
     /**
@@ -88,7 +77,7 @@ class Importer
      * @param mixed $dataSource
      * @throws \InvalidArgumentException If the data source is not supported.
      */
-    public function import($dataSource)
+    public function import(mixed $dataSource): void
     {
         if (is_callable($dataSource)) {
             $this->importFromCallback($dataSource);
@@ -115,7 +104,7 @@ class Importer
      *
      * @param object $entity
      */
-    protected function importEntity($entity)
+    protected function importEntity(object $entity): void
     {
         $this->importEntityList(array($entity));
     }
@@ -125,11 +114,10 @@ class Importer
      *
      * @param object[] $entities
      */
-    protected function importEntityList(array $entities)
+    protected function importEntityList(array $entities): void
     {
         $this->importFromCallback(function (ObjectManager $objectManager) use ($entities) {
             foreach ($entities as $entity) {
-                /* @var $entity object */
                 $objectManager->persist($entity);
             }
         });
@@ -140,7 +128,7 @@ class Importer
      *
      * @param string $path
      */
-    protected function importFromFile($path)
+    protected function importFromFile(string $path): void
     {
         $entities = null;
         /* @noinspection PhpUnusedParameterInspection $objectManager should be in the scope of the included file. */
@@ -158,14 +146,9 @@ class Importer
      *
      * @param callable $callback
      */
-    protected function importFromCallback($callback)
+    protected function importFromCallback(callable $callback): void
     {
-        $import = function (ObjectManager $objectManager) use ($callback) {
-            $decorator = new MemorizingObjectManagerDecorator($objectManager);
-            call_user_func($callback, $decorator);
-            return $decorator->getSeenEntities();
-        };
-        $this->entityManager->wrapInTransaction($import);
+        $this->entityManager->wrapInTransaction($callback);
         // Clear the entity manager to ensure that there are no leftovers in the identity map.
         $this->entityManager->clear();
     }
